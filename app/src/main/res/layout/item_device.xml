@@ -28,11 +28,11 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
-            android:id="@+id/tvHostname"
+            android:id="@+id/tv_hostname"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="8dp"
             android:layout_marginEnd="16dp"
             android:ellipsize="end"
             android:text="Hostname"
@@ -41,25 +41,34 @@
             app:layout_constraintTop_toBottomOf="@+id/tv_vendor_name" />
 
         <TextView
+            android:id="@+id/tv_ip_address"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="192.168.1.1"
+            app:layout_constraintEnd_toStartOf="@+id/tv_latency"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tv_hostname" />
+
+        <TextView
             android:id="@+id/tv_mac_address"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:layout_marginTop="8dp"
             android:text="00:00:00:00:00:00"
-            app:layout_constraintEnd_toStartOf="@+id/textView5"
+            app:layout_constraintEnd_toStartOf="@+id/tv_latency"
             app:layout_constraintHorizontal_bias="0.0"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/tvHostname" />
+            app:layout_constraintTop_toBottomOf="@+id/tv_ip_address" />
 
         <TextView
-            android:id="@+id/textView5"
+            android:id="@+id/tv_latency"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
             android:layout_marginEnd="16dp"
             android:text="100 ms"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/tvHostname" />
+            app:layout_constraintTop_toBottomOf="@+id/tv_ip_address" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>

@@ -15,8 +15,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.ipscannerk.databinding.ActivityMainBinding
 import com.example.ipscannerk.model.DeviceInfo
+import com.example.ipscannerk.view.DeviceInfoAdapter
 import kotlinx.android.synthetic.main.activity_main.*
 import java.io.BufferedReader
 import java.io.FileNotFoundException
@@ -30,11 +32,16 @@ import java.util.regex.Pattern
 class MainActivity : AppCompatActivity() {
     private val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1
     private var deviceList: MutableList<DeviceInfo> = mutableListOf()
+    private lateinit var adapter : DeviceInfoAdapter
     private lateinit var binding: ActivityMainBinding
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         setSupportActionBar(toolbar)
+
+        adapter = DeviceInfoAdapter()
+        binding.contentMain.rvDeviceInfo.layoutManager = LinearLayoutManager(this)
+        binding.contentMain.rvDeviceInfo.adapter = adapter
         displaySSIDName()
         //get self IP
 
@@ -83,6 +90,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 line = bufferedReader.readLine()
             }
+            adapter.setupDeviceInfoListData(deviceList)
         } catch (e: FileNotFoundException) {
             e.printStackTrace()
         } catch (e: IOException) {
