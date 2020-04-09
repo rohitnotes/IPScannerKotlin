@@ -81,51 +81,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun readAddresses() {
-        deviceList.clear()
-        var bufferedReader: BufferedReader? = null
-        try {
-            bufferedReader = BufferedReader(FileReader("/proc/net/arp"))
-            var line: String? = bufferedReader.readLine()
-            binding.contentMain.tvProgressDescription.text =
-                getString(R.string.listing_connected_devices)
-            binding.contentMain.pbScanNetwork.progress = 0
-            binding.contentMain.pbScanNetwork.isIndeterminate = true
-            binding.contentMain.pbScanNetwork.animate()
-            while (line != null) {
-                val splitted =
-                    line.split((" +").toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
-                if (splitted != null && splitted.size >= 4) {
-                    val ip = splitted[0]
-                    val mac = splitted[3]
-                    if (mac.matches(("..:..:..:..:..:..").toRegex())) {
-                        if (mac != "00:00:00:00:00:00") {
-                            Log.e("READ", "$ip | $mac")
-                            deviceList.add(DeviceInfo(ip, mac, "vendor", "host", "100 ms"))
-                        }
-                    }
-                }
-                line = bufferedReader.readLine()
-            }
-            binding.contentMain.pbScanNetwork.isIndeterminate = false
-            binding.contentMain.pbScanNetwork.max = 100
-            binding.contentMain.pbScanNetwork.progress = 100
-            adapter.setupDeviceInfoListData(deviceList)
-            binding.contentMain.tvProgressDescription.text =
-                getString(R.string.connected_device_listed)
-        } catch (e: FileNotFoundException) {
-            e.printStackTrace()
-        } catch (e: IOException) {
-            e.printStackTrace()
-        } finally {
-            try {
-                bufferedReader?.close()
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
-        }
-    }
-
     private suspend fun loadingUiState() {
         withContext(Main) {
             binding.contentMain.tvProgressDescription.text =
@@ -209,37 +164,6 @@ class MainActivity : AppCompatActivity() {
         }
         binding.contentMain.tvProgressDescription.text = getString(R.string.scanning_complete)
 
-    }
-
-    private fun scanOnNewThread(subnet: String) { //create a runnable
-        val runnable = Runnable {
-            val startHostIp = 0
-            val endHostIp = 254
-            binding.contentMain.pbScanNetwork.isIndeterminate = false
-            binding.contentMain.pbScanNetwork.max = 254
-            binding.contentMain.tvProgressDescription.text =
-                getString(R.string.scanning_connected_devices)
-            for (i in startHostIp..endHostIp) {
-                val host = subnet + "." + (i + 1)
-                try {
-                    if (InetAddress.getByName(host).isReachable(10)) println("$host is reachable") else println(
-                        "$host is not reachable"
-                    )
-                } catch (e: UnknownHostException) {
-                    e.printStackTrace()
-                } catch (e: IOException) {
-                    e.printStackTrace()
-                }
-                binding.contentMain.pbScanNetwork.progress = i
-            }
-            binding.contentMain.tvProgressDescription.text = getString(R.string.scanning_complete)
-
-        }
-        Log.i("ScanOnNewThread", "Thread Scan IP: " + Thread.currentThread().name)
-        //create a new thread
-        val thread = Thread(runnable)
-        thread.start()
-        readAddresses()
     }
 
     /**
