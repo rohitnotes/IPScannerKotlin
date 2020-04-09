@@ -43,7 +43,7 @@ class DeviceInfoAdapter : RecyclerView.Adapter<DeviceInfoAdapter.DeviceInfoViewH
     }
 
     override fun getItemCount(): Int {
-        return deviceInfoList.size ?: 0
+        return deviceInfoList.size
     }
 
     override fun onBindViewHolder(holder: DeviceInfoViewHolder, position: Int) {

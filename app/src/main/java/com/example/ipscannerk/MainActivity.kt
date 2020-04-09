@@ -20,19 +20,24 @@ import com.example.ipscannerk.databinding.ActivityMainBinding
 import com.example.ipscannerk.model.DeviceInfo
 import com.example.ipscannerk.view.DeviceInfoAdapter
 import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers.Default
+import kotlinx.coroutines.Dispatchers.Main
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.FileNotFoundException
 import java.io.FileReader
 import java.io.IOException
 import java.net.InetAddress
 import java.net.UnknownHostException
-import java.util.regex.Pattern
 
 
 class MainActivity : AppCompatActivity() {
     private val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1
     private var deviceList: MutableList<DeviceInfo> = mutableListOf()
-    private lateinit var adapter : DeviceInfoAdapter
+    private var scan = true
+    private lateinit var adapter: DeviceInfoAdapter
     private lateinit var binding: ActivityMainBinding
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,8 +52,15 @@ class MainActivity : AppCompatActivity() {
 
 
         binding.contentMain.btnScanNetwork.setOnClickListener {
+            //hold the scan button, or use it as cancel
+            scan = false
+            binding.contentMain.btnScanNetwork.text = "Cancel"
+            binding.contentMain.btnScanNetwork.isEnabled = false
             //start to scan the IP Address
-            scanOnNewThread("192.168.1")
+ //            scanOnNewThread("192.168.1")
+            CoroutineScope(Default).launch {
+                scanAddresses("192.168.1")
+            }
         }
     }
 
@@ -75,6 +87,11 @@ class MainActivity : AppCompatActivity() {
         try {
             bufferedReader = BufferedReader(FileReader("/proc/net/arp"))
             var line: String? = bufferedReader.readLine()
+            binding.contentMain.tvProgressDescription.text =
+                getString(R.string.listing_connected_devices)
+            binding.contentMain.pbScanNetwork.progress = 0
+            binding.contentMain.pbScanNetwork.isIndeterminate = true
+            binding.contentMain.pbScanNetwork.animate()
             while (line != null) {
                 val splitted =
                     line.split((" +").toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
@@ -84,13 +101,18 @@ class MainActivity : AppCompatActivity() {
                     if (mac.matches(("..:..:..:..:..:..").toRegex())) {
                         if (mac != "00:00:00:00:00:00") {
                             Log.e("READ", "$ip | $mac")
-                            deviceList.add(DeviceInfo(ip,mac,"vendor", "host", "100 ms"))
+                            deviceList.add(DeviceInfo(ip, mac, "vendor", "host", "100 ms"))
                         }
                     }
                 }
                 line = bufferedReader.readLine()
             }
+            binding.contentMain.pbScanNetwork.isIndeterminate = false
+            binding.contentMain.pbScanNetwork.max = 100
+            binding.contentMain.pbScanNetwork.progress = 100
             adapter.setupDeviceInfoListData(deviceList)
+            binding.contentMain.tvProgressDescription.text =
+                getString(R.string.connected_device_listed)
         } catch (e: FileNotFoundException) {
             e.printStackTrace()
         } catch (e: IOException) {
@@ -104,12 +126,103 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private suspend fun loadingUiState() {
+        withContext(Main) {
+            binding.contentMain.tvProgressDescription.text =
+                getString(R.string.listing_connected_devices)
+            binding.contentMain.pbScanNetwork.progress = 0
+            binding.contentMain.pbScanNetwork.isIndeterminate = true
+            binding.contentMain.pbScanNetwork.animate()
+        }
+    }
+
+    private suspend fun loadingUiStateAfterScan() {
+        withContext(Main) {
+            binding.contentMain.pbScanNetwork.isIndeterminate = false
+            binding.contentMain.pbScanNetwork.max = 100
+            binding.contentMain.pbScanNetwork.progress = 100
+            adapter.setupDeviceInfoListData(deviceList)
+            binding.contentMain.tvProgressDescription.text =
+                getString(R.string.connected_device_listed)
+            scan = false
+            binding.contentMain.btnScanNetwork.text = "Scan"
+            binding.contentMain.btnScanNetwork.isEnabled = false
+        }
+    }
+
+    private suspend fun scanAddresses(subnet: String) {
+        scanNetwork(subnet)
+        deviceList.clear()
+        var bufferedReader: BufferedReader? = null
+        try {
+            bufferedReader = BufferedReader(FileReader("/proc/net/arp"))
+            var line: String? = bufferedReader.readLine()
+            loadingUiState()
+            while (line != null) {
+                val splitted =
+                    line.split((" +").toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+                if (splitted != null && splitted.size >= 4) {
+                    val ip = splitted[0]
+                    val mac = splitted[3]
+                    if (mac.matches(("..:..:..:..:..:..").toRegex())) {
+                        if (mac != "00:00:00:00:00:00") {
+                            Log.e("READ", "$ip | $mac")
+                            deviceList.add(DeviceInfo(ip, mac, "vendor", "host", "100 ms"))
+                        }
+                    }
+                }
+                line = bufferedReader.readLine()
+            }
+            loadingUiStateAfterScan()
+        } catch (e: FileNotFoundException) {
+            e.printStackTrace()
+        } catch (e: IOException) {
+            e.printStackTrace()
+        } finally {
+            try {
+                bufferedReader?.close()
+            } catch (e: IOException) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private suspend fun scanNetwork(subnet: String) {
+        val startHostIp = 0
+        val endHostIp = 254
+        binding.contentMain.pbScanNetwork.isIndeterminate = false
+        binding.contentMain.pbScanNetwork.max = 254
+        binding.contentMain.tvProgressDescription.text =
+            getString(R.string.scanning_connected_devices)
+        for (i in startHostIp..endHostIp) {
+            val host = subnet + "." + (i + 1)
+            try {
+                if (InetAddress.getByName(host).isReachable(10)) println("$host is reachable") else println(
+                    "$host is not reachable"
+                )
+            } catch (e: UnknownHostException) {
+                e.printStackTrace()
+            } catch (e: IOException) {
+                e.printStackTrace()
+            }
+            binding.contentMain.pbScanNetwork.progress = i
+        }
+        binding.contentMain.tvProgressDescription.text = getString(R.string.scanning_complete)
+
+    }
+
     private fun scanOnNewThread(subnet: String) { //create a runnable
         val runnable = Runnable {
-            for (i in 0..254) {
+            val startHostIp = 0
+            val endHostIp = 254
+            binding.contentMain.pbScanNetwork.isIndeterminate = false
+            binding.contentMain.pbScanNetwork.max = 254
+            binding.contentMain.tvProgressDescription.text =
+                getString(R.string.scanning_connected_devices)
+            for (i in startHostIp..endHostIp) {
                 val host = subnet + "." + (i + 1)
                 try {
-                    if (InetAddress.getByName(host).isReachable(300)) println("$host is reachable") else println(
+                    if (InetAddress.getByName(host).isReachable(10)) println("$host is reachable") else println(
                         "$host is not reachable"
                     )
                 } catch (e: UnknownHostException) {
@@ -117,7 +230,10 @@ class MainActivity : AppCompatActivity() {
                 } catch (e: IOException) {
                     e.printStackTrace()
                 }
+                binding.contentMain.pbScanNetwork.progress = i
             }
+            binding.contentMain.tvProgressDescription.text = getString(R.string.scanning_complete)
+
         }
         Log.i("ScanOnNewThread", "Thread Scan IP: " + Thread.currentThread().name)
         //create a new thread

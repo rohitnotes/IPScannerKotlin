@@ -9,4 +9,8 @@
 
     <string name="hello_first_fragment">Hello first fragment</string>
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+    <string name="scanning_connected_devices">Scanning Connected Devices</string>
+    <string name="scanning_complete">Scanning Complete</string>
+    <string name="listing_connected_devices">Listing Connected Devices</string>
+    <string name="connected_device_listed">Connected Device Listed</string>
 </resources>
