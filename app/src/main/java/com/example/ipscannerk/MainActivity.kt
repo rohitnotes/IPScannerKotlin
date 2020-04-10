@@ -1,6 +1,7 @@
 package com.example.ipscannerk
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.NetworkInfo.DetailedState
@@ -31,18 +32,20 @@ import java.io.BufferedReader
 import java.io.FileNotFoundException
 import java.io.FileReader
 import java.io.IOException
-import java.net.InetAddress
-import java.net.UnknownHostException
+import java.net.*
 import java.util.*
 
-
+// TODO : Create settings to set the reachable timeout when scanning (create new Settings Activity)
+// TODO : Create Export to CSV feature
 class MainActivity : AppCompatActivity() {
     private val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1
     private var deviceList: MutableList<DeviceInfo> = mutableListOf()
     private var isScanning = false
+    private var selfDeviceInfo: DeviceInfo? = null
     private lateinit var viewModel: MainViewModel
     private lateinit var adapter: DeviceInfoAdapter
     private lateinit var binding: ActivityMainBinding
+    @SuppressLint("HardwareIds")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
@@ -54,18 +57,25 @@ class MainActivity : AppCompatActivity() {
         binding.contentMain.rvDeviceInfo.layoutManager = LinearLayoutManager(this)
         binding.contentMain.rvDeviceInfo.adapter = adapter
         displaySSIDName()
-        //get self IP
 
 
         binding.contentMain.btnScanNetwork.setOnClickListener {
-            //hold the scan button, or use it as cancel
+            deviceList.clear()
+            //hold the scan button, or use it as cancel. This is the default state
             isScanning = true
             binding.contentMain.btnScanNetwork.text = getString(R.string.cancel)
             binding.contentMain.btnScanNetwork.isEnabled = false
-            //start to scan the IP Address
-            //            scanOnNewThread("192.168.1")
+
             CoroutineScope(Default).launch {
-                scanAddresses("192.168.1")
+                //get self
+                val selfDevice = getSelfDeviceInfo()
+                deviceList.add(selfDevice)
+                val selfIpTypedArray = selfDevice.ipAddress!!.split(".").toTypedArray()
+                val subnet = "${selfIpTypedArray[0]}.${selfIpTypedArray[1]}.${selfIpTypedArray[2]}"
+                Log.e("SelfIP", subnet)
+
+                //start to scan the Subnet
+                scanAddresses(subnet)
             }
         }
     }
@@ -87,27 +97,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun getLatencyOfIp(host: String): String {
-        val TAG = "getLatencyOfIp"
-        var timeOfPing: Long = 100
-        val startTime = System.currentTimeMillis()
-        val runtime = Runtime.getRuntime()
-        var ipProcess: Process? = null
+    private fun getMacAddress(): String {
         try {
-            ipProcess = runtime.exec("/system/bin/ping -c 1 $host")
-            ipProcess.waitFor()
-            timeOfPing = (System.currentTimeMillis() - startTime)
-            Log.e(TAG, "run: pingtime is $timeOfPing")
-        } catch (e: IOException) {
-            Log.e(TAG, "run: IOException $e")
-            e.printStackTrace()
-        } catch (e: InterruptedException) {
-            Log.e(TAG, "run: InterruptedException $e")
-            e.printStackTrace()
+            val all = Collections.list(NetworkInterface.getNetworkInterfaces())
+            for (nif in all) {
+                if (!nif.name.equals("wlan0", ignoreCase = true)) continue
+                val macBytes = nif.hardwareAddress ?: return ""
+                val res1 = StringBuilder()
+                for (b in macBytes) {
+                    res1.append(String.format("%02X:", b))
+                }
+                if (res1.isNotEmpty()) {
+                    res1.deleteCharAt(res1.length - 1)
+                }
+                return res1.toString()
+            }
+        } catch (ex: Exception) {
         }
-
-        return "$timeOfPing ms"
+        return "02:00:00:00:00:00"
     }
+
 
     private suspend fun loadingUiState() {
         withContext(Main) {
@@ -136,7 +145,6 @@ class MainActivity : AppCompatActivity() {
 
     private suspend fun scanAddresses(subnet: String) {
         scanNetwork(subnet)
-        deviceList.clear()
         var bufferedReader: BufferedReader? = null
         try {
             bufferedReader = BufferedReader(FileReader("/proc/net/arp"))
@@ -145,19 +153,14 @@ class MainActivity : AppCompatActivity() {
             while (line != null) {
                 val splitted =
                     line.split((" +").toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
-                if (splitted != null && splitted.size >= 4) {
+                if (splitted.size >= 4) {
                     val ip = splitted[0]
                     val mac = splitted[3]
                     if (mac.matches(("..:..:..:..:..:..").toRegex())) {
                         if (mac != "00:00:00:00:00:00") {
-                            Log.e("READ", "$ip | $mac")
                             val macHeader = mac.replace(":", "-").substring(0, 8).toUpperCase()
-                            Log.e("TAG", "readAddresses HEADER: $macHeader")
-
                             val result = viewModel.getVendorInfo(macHeader)
-                            Log.e("TAG", "Vendor Info ${result?.vendorName}")
                             val latency = getLatencyOfIp(ip)
-                            Log.e("TAG", "Latency of $ip = $latency")
 
                             deviceList.add(
                                 DeviceInfo(
@@ -187,6 +190,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun getLatencyOfIp(host: String): String {
+        val TAG = "getLatencyOfIp"
+        var timeOfPing: Long = 100
+        val startTime = System.currentTimeMillis()
+        val runtime = Runtime.getRuntime()
+        var ipProcess: Process? = null
+        try {
+            ipProcess = runtime.exec("/system/bin/ping -c 1 $host")
+            ipProcess.waitFor()
+            timeOfPing = (System.currentTimeMillis() - startTime)
+            Log.e(TAG, "run: pingtime is $timeOfPing")
+        } catch (e: IOException) {
+            Log.e(TAG, "run: IOException $e")
+            e.printStackTrace()
+        } catch (e: InterruptedException) {
+            Log.e(TAG, "run: InterruptedException $e")
+            e.printStackTrace()
+        }
+
+        return "$timeOfPing ms"
+    }
+
     private fun scanNetwork(subnet: String) {
         val startHostIp = 0
         val endHostIp = 254
@@ -208,7 +233,6 @@ class MainActivity : AppCompatActivity() {
             binding.contentMain.pbScanNetwork.progress = i
         }
         binding.contentMain.tvProgressDescription.text = getString(R.string.scanning_complete)
-
     }
 
     /**
@@ -286,5 +310,39 @@ class MainActivity : AppCompatActivity() {
         } else {
             super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         }
+    }
+
+    private fun getLocalDeviceInfo(): InetAddress? {
+        try {
+            val en = NetworkInterface.getNetworkInterfaces()
+            while (en.hasMoreElements()) {
+                val netInterface = en.nextElement()
+                val enumIpAddress = netInterface.inetAddresses
+                while (enumIpAddress.hasMoreElements()) {
+                    val inetAddress = enumIpAddress.nextElement()
+                    if (!inetAddress.isLoopbackAddress && inetAddress is Inet4Address) {
+                        return inetAddress
+                    }
+                }
+            }
+        } catch (ex: SocketException) {
+            ex.printStackTrace()
+        }
+        return null
+    }
+
+    private suspend fun getSelfDeviceInfo(): DeviceInfo {
+        //get self IP
+        val selfMac = getMacAddress()
+        val selfMacHeader = selfMac.replace(":", "-").substring(0, 8).toUpperCase(Locale.getDefault())
+        val selfDeviceInfo = getLocalDeviceInfo()
+        val vendorName = viewModel.getVendorInfo(selfMacHeader)?.vendorName
+        return DeviceInfo(
+            selfDeviceInfo?.hostName,
+            selfMac,
+            vendorName,
+            selfDeviceInfo?.canonicalHostName,
+            "0 ms"
+        )
     }
 }
