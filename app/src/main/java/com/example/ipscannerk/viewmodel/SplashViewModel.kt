@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import com.example.ipscannerk.interactor.OnOUIDataLoaded
+import com.example.ipscannerk.model.local.VendorInfo
 import com.example.ipscannerk.repo.VendorInfoRepository
 
 class SplashViewModel(application: Application) : AndroidViewModel(application) {
@@ -14,8 +15,8 @@ class SplashViewModel(application: Application) : AndroidViewModel(application) 
         return vendorDBReady
     }
 
-    fun loadOuiData(listener: OnOUIDataLoaded){
-        repo.testListener(listener)
+    fun loadOuiData(vendorInfoList: List<VendorInfo>, listener: OnOUIDataLoaded){
+        repo.loadVendorInfoData(vendorInfoList, listener)
     }
 
 }

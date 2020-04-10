@@ -8,8 +8,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.example.ipscannerk.interactor.OnOUIDataLoaded
-import com.example.ipscannerk.repo.VendorInfoRepository
+import com.example.ipscannerk.model.local.VendorInfo
 import com.example.ipscannerk.viewmodel.SplashViewModel
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import java.io.IOException
 import java.io.InputStream
 
@@ -23,18 +26,36 @@ class SplashScreenActivity : AppCompatActivity(), OnOUIDataLoaded {
         viewModel = ViewModelProvider(this).get(SplashViewModel::class.java)
         viewModel.isDatabaseEmpty()?.observe(this, Observer {
             if (it == null) {
+                Thread(Runnable {
+                    val vendorInfoList: MutableList<VendorInfo> = ArrayList()
+                    //read the json files
+                    val obj: JsonObject =
+                        JsonParser.parseString(loadJSONFromAsset()).asJsonObject
+                    val entrySet: Set<Map.Entry<String?, JsonElement>> =
+                        obj.entrySet()
+                    for ((key, value) in entrySet) {
+                        vendorInfoList.add(
+                            VendorInfo(
+                                key!!,
+                                value.asJsonObject.get("vendor").getAsString()
+                            )
+                        )
+                    }
+                    viewModel.loadOuiData(vendorInfoList, this@SplashScreenActivity)
+                }).start()
                 Toast.makeText(this, "DB is Empty, Load the Data", Toast.LENGTH_SHORT).show()
                 Log.e("this", "DB is Empty, Load the Data")
-            }else{
+            } else {
                 Toast.makeText(this, "DB already available", Toast.LENGTH_SHORT).show()
                 Log.e("this", "DB already available")
+                startActivity(Intent(this@SplashScreenActivity, MainActivity::class.java))
             }
         })
 
-        viewModel.loadOuiData(this@SplashScreenActivity)
+//        viewModel.loadOuiData(this@SplashScreenActivity)
     }
 
-    fun loadJSONFromAsset(): String? {
+    private fun loadJSONFromAsset(): String? {
         var json: String? = null
         json = try {
             val inputStream: InputStream = assets.open("oui.json")
@@ -51,6 +72,6 @@ class SplashScreenActivity : AppCompatActivity(), OnOUIDataLoaded {
     }
 
     override fun onOuiDataLoadedListener() {
-        startActivity(Intent(this@SplashScreenActivity,MainActivity::class.java))
+        startActivity(Intent(this@SplashScreenActivity, MainActivity::class.java))
     }
 }
