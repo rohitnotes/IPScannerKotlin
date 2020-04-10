@@ -18,15 +18,10 @@ class VendorInfoRepository(application: Application) {
         executorService = Executors.newSingleThreadExecutor()
         val db = VendorInfoDatabase.getInstance(application)
         mVendorInfoDAO = db?.vendorInfoDAO()
-
     }
 
     fun checkIsDbEmpty(): LiveData<String>? {
         return mVendorInfoDAO?.checkIsDbEmpty()
-    }
-
-    fun testListener(listener: OnOUIDataLoaded){
-        listener.onOuiDataLoadedListener()
     }
 
     fun loadVendorInfoData(vendorInfoList: List<VendorInfo>, listener: OnOUIDataLoaded) {
@@ -34,5 +29,9 @@ class VendorInfoRepository(application: Application) {
             mVendorInfoDAO?.insertVendorInfoList(vendorInfoList)
             listener.onOuiDataLoadedListener()
         })
+    }
+
+    suspend fun getVendorNameWithMacHeader(macHeader: String): VendorInfo? {
+        return mVendorInfoDAO?.getVendorInfoByOuiIDSuspend(macHeader)
     }
 }

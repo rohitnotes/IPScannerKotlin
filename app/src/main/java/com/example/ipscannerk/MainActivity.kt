@@ -15,10 +15,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.ipscannerk.databinding.ActivityMainBinding
 import com.example.ipscannerk.model.DeviceInfo
 import com.example.ipscannerk.view.DeviceInfoAdapter
+import com.example.ipscannerk.viewmodel.MainViewModel
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers.Default
@@ -36,13 +38,16 @@ import java.net.UnknownHostException
 class MainActivity : AppCompatActivity() {
     private val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1
     private var deviceList: MutableList<DeviceInfo> = mutableListOf()
-    private var scan = true
+    private var isScanning = false
+    private lateinit var viewModel: MainViewModel
     private lateinit var adapter: DeviceInfoAdapter
     private lateinit var binding: ActivityMainBinding
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         setSupportActionBar(toolbar)
+
+        viewModel = ViewModelProvider(this).get(MainViewModel::class.java)
 
         adapter = DeviceInfoAdapter()
         binding.contentMain.rvDeviceInfo.layoutManager = LinearLayoutManager(this)
@@ -53,11 +58,11 @@ class MainActivity : AppCompatActivity() {
 
         binding.contentMain.btnScanNetwork.setOnClickListener {
             //hold the scan button, or use it as cancel
-            scan = false
-            binding.contentMain.btnScanNetwork.text = "Cancel"
+            isScanning = true
+            binding.contentMain.btnScanNetwork.text = getString(R.string.cancel)
             binding.contentMain.btnScanNetwork.isEnabled = false
             //start to scan the IP Address
- //            scanOnNewThread("192.168.1")
+            //            scanOnNewThread("192.168.1")
             CoroutineScope(Default).launch {
                 scanAddresses("192.168.1")
             }
@@ -99,9 +104,9 @@ class MainActivity : AppCompatActivity() {
             adapter.setupDeviceInfoListData(deviceList)
             binding.contentMain.tvProgressDescription.text =
                 getString(R.string.connected_device_listed)
-            scan = false
-            binding.contentMain.btnScanNetwork.text = "Scan"
-            binding.contentMain.btnScanNetwork.isEnabled = false
+            isScanning = false
+            binding.contentMain.btnScanNetwork.text = getString(R.string.scan)
+            binding.contentMain.btnScanNetwork.isEnabled = true
         }
     }
 
@@ -122,7 +127,13 @@ class MainActivity : AppCompatActivity() {
                     if (mac.matches(("..:..:..:..:..:..").toRegex())) {
                         if (mac != "00:00:00:00:00:00") {
                             Log.e("READ", "$ip | $mac")
-                            deviceList.add(DeviceInfo(ip, mac, "vendor", "host", "100 ms"))
+                            val macHeader = mac.replace(":", "-").substring(0, 8).toUpperCase();
+                            Log.e("TAG", "readAddresses HEADER: $macHeader");
+
+                            val result = viewModel.getVendorInfo(macHeader)
+                            Log.e("TAG", "Vendor Info ${result?.vendorName}");
+
+                            deviceList.add(DeviceInfo(ip, mac, result?.vendorName, "host", "100 ms"))
                         }
                     }
                 }
@@ -142,7 +153,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun scanNetwork(subnet: String) {
+    private fun scanNetwork(subnet: String) {
         val startHostIp = 0
         val endHostIp = 254
         binding.contentMain.pbScanNetwork.isIndeterminate = false

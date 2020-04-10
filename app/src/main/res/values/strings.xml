@@ -13,4 +13,6 @@
     <string name="scanning_complete">Scanning Complete</string>
     <string name="listing_connected_devices">Listing Connected Devices</string>
     <string name="connected_device_listed">Connected Device Listed</string>
+    <string name="scan">Scan</string>
+    <string name="cancel">Cancel</string>
 </resources>

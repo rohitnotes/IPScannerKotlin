@@ -13,7 +13,7 @@ interface VendorInfoDAO {
     fun insertVendorInfoList(vendorInfoList: List<VendorInfo>)
 
     @Query("SELECT * FROM vendor_info WHERE  ouiID =:macHeader LIMIT 1")
-    fun getVendorInfoByOuiID(macHeader: String?): LiveData<VendorInfo?>?
+    suspend fun getVendorInfoByOuiIDSuspend(macHeader: String?): VendorInfo
 
     @Query("SELECT ouiId FROM vendor_info LIMIT 1")
     fun checkIsDbEmpty(): LiveData<String>?
