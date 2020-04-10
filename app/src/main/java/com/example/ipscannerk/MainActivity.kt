@@ -33,6 +33,7 @@ import java.io.FileReader
 import java.io.IOException
 import java.net.InetAddress
 import java.net.UnknownHostException
+import java.util.*
 
 
 class MainActivity : AppCompatActivity() {
@@ -123,6 +124,7 @@ class MainActivity : AppCompatActivity() {
             binding.contentMain.pbScanNetwork.isIndeterminate = false
             binding.contentMain.pbScanNetwork.max = 100
             binding.contentMain.pbScanNetwork.progress = 100
+            deviceList.sort()
             adapter.setupDeviceInfoListData(deviceList)
             binding.contentMain.tvProgressDescription.text =
                 getString(R.string.connected_device_listed)
