@@ -86,6 +86,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private suspend fun getLatencyOfIp(host: String): String {
+        val TAG = "getLatencyOfIp"
+        var timeOfPing: Long = 100
+        val startTime = System.currentTimeMillis()
+        val runtime = Runtime.getRuntime()
+        var ipProcess: Process? = null
+        try {
+            ipProcess = runtime.exec("/system/bin/ping -c 1 $host")
+            ipProcess.waitFor()
+            timeOfPing = (System.currentTimeMillis() - startTime)
+            Log.e(TAG, "run: pingtime is $timeOfPing")
+        } catch (e: IOException) {
+            Log.e(TAG, "run: IOException $e")
+            e.printStackTrace()
+        } catch (e: InterruptedException) {
+            Log.e(TAG, "run: InterruptedException $e")
+            e.printStackTrace()
+        }
+
+        return "$timeOfPing ms"
+    }
+
     private suspend fun loadingUiState() {
         withContext(Main) {
             binding.contentMain.tvProgressDescription.text =
@@ -127,13 +149,23 @@ class MainActivity : AppCompatActivity() {
                     if (mac.matches(("..:..:..:..:..:..").toRegex())) {
                         if (mac != "00:00:00:00:00:00") {
                             Log.e("READ", "$ip | $mac")
-                            val macHeader = mac.replace(":", "-").substring(0, 8).toUpperCase();
-                            Log.e("TAG", "readAddresses HEADER: $macHeader");
+                            val macHeader = mac.replace(":", "-").substring(0, 8).toUpperCase()
+                            Log.e("TAG", "readAddresses HEADER: $macHeader")
 
                             val result = viewModel.getVendorInfo(macHeader)
-                            Log.e("TAG", "Vendor Info ${result?.vendorName}");
+                            Log.e("TAG", "Vendor Info ${result?.vendorName}")
+                            val latency = getLatencyOfIp(ip)
+                            Log.e("TAG", "Latency of $ip = $latency")
 
-                            deviceList.add(DeviceInfo(ip, mac, result?.vendorName, "host", "100 ms"))
+                            deviceList.add(
+                                DeviceInfo(
+                                    ip,
+                                    mac,
+                                    result?.vendorName,
+                                    "host",
+                                    latency
+                                )
+                            )
                         }
                     }
                 }
