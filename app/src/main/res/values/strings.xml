@@ -15,4 +15,5 @@
     <string name="connected_device_listed">Connected Device Listed</string>
     <string name="scan">Scan</string>
     <string name="cancel">Cancel</string>
+    <string name="export_to_csv">Export to CSV</string>
 </resources>

@@ -3,6 +3,7 @@ package com.example.ipscannerk
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.DialogInterface
 import android.content.pm.PackageManager
 import android.net.NetworkInfo.DetailedState
 import android.net.wifi.WifiInfo
@@ -12,6 +13,7 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -87,12 +89,27 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         return when (item.itemId) {
             R.id.action_settings -> true
+            R.id.action_export_csv -> {
+                val builder: AlertDialog.Builder = AlertDialog.Builder(this)
+                builder.setTitle("Confirm Export to CSV")
+                    .setMessage("This will create CSV file containing list of connected device information to your phone. Please confirm that you are going to export the data as CSV file?")
+
+                builder.setCancelable(true)
+                    .setNegativeButton(android.R.string.no) { _, _ ->
+                        Toast.makeText(this, "Export to CSV cancelled", Toast.LENGTH_SHORT).show()
+                    }.setPositiveButton("Confirm") { _, _ ->
+                        Toast.makeText(this, "Export to CSV Clicked", Toast.LENGTH_SHORT).show()
+                    }
+                builder.show()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -334,7 +351,8 @@ class MainActivity : AppCompatActivity() {
     private suspend fun getSelfDeviceInfo(): DeviceInfo {
         //get self IP
         val selfMac = getMacAddress()
-        val selfMacHeader = selfMac.replace(":", "-").substring(0, 8).toUpperCase(Locale.getDefault())
+        val selfMacHeader =
+            selfMac.replace(":", "-").substring(0, 8).toUpperCase(Locale.getDefault())
         val selfDeviceInfo = getLocalDeviceInfo()
         val vendorName = viewModel.getVendorInfo(selfMacHeader)?.vendorName
         return DeviceInfo(
